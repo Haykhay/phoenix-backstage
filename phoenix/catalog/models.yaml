@@ -1,0 +1,109 @@
+# Curated models. Adding one is adding an entity here. The source pre-fills
+# the workload form; version is the Hugging Face commit SHA (a branch moves).
+# size-gib is the repo's full size plus ~10%: the copy job's scratch volume.
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: model-llama-3-1-8b
+  title: Llama 3.1 8B Instruct
+  description: "Meta Llama 3.1 8B Instruct (gated: needs a Hugging Face token)."
+  annotations:
+    phoenix/source-type: "huggingface"
+    phoenix/source-uri: "meta-llama/Llama-3.1-8B-Instruct"
+    phoenix/version: "0e9e39f249a16976918f6564b8830bc894c89659"
+    phoenix/size-gib: "34"
+    phoenix/credentials: "true"
+    phoenix/min-gpu: "l4"
+spec:
+  type: phoenix-model
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-aws-fsx-csi-driver
+    - resource:default/component-model-weights
+    - resource:default/component-vllm
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: model-mistral-7b
+  title: Mistral 7B Instruct
+  description: "Mistral 7B Instruct v0.3."
+  annotations:
+    phoenix/source-type: "huggingface"
+    phoenix/source-uri: "mistralai/Mistral-7B-Instruct-v0.3"
+    phoenix/version: "c170c708c41dac9275d15a8fff4eca08d52bab71"
+    phoenix/size-gib: "31"
+    phoenix/credentials: "false"
+    phoenix/min-gpu: "l4"
+spec:
+  type: phoenix-model
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-aws-fsx-csi-driver
+    - resource:default/component-model-weights
+    - resource:default/component-vllm
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: model-qwen2-5-7b
+  title: Qwen2.5 7B Instruct
+  description: "Qwen2.5 7B Instruct."
+  annotations:
+    phoenix/source-type: "huggingface"
+    phoenix/source-uri: "Qwen/Qwen2.5-7B-Instruct"
+    phoenix/version: "a09a35458c702b33eeacc393d103063234e8bc28"
+    phoenix/size-gib: "17"
+    phoenix/credentials: "false"
+    phoenix/min-gpu: "l4"
+spec:
+  type: phoenix-model
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-aws-fsx-csi-driver
+    - resource:default/component-model-weights
+    - resource:default/component-vllm
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: model-llama-3-3-70b
+  title: Llama 3.3 70B Instruct
+  description: "Meta Llama 3.3 70B Instruct (gated). Day-one dense model: one node of 4-8 large GPUs."
+  annotations:
+    phoenix/source-type: "huggingface"
+    phoenix/source-uri: "meta-llama/Llama-3.3-70B-Instruct"
+    phoenix/version: "6f6073b423013f6a7d4d9f39144961bfbfbc386b"
+    phoenix/size-gib: "290"
+    phoenix/credentials: "true"
+    phoenix/min-gpu: "h100"
+spec:
+  type: phoenix-model
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-aws-fsx-csi-driver
+    - resource:default/component-model-weights
+    - resource:default/component-vllm
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: model-deepseek-r1-0528
+  title: DeepSeek R1 0528
+  description: "DeepSeek R1 0528, ~671B MoE. Day-one MoE: multi-node wide EP + P/D on an EFA pool with a reservation."
+  annotations:
+    phoenix/source-type: "huggingface"
+    phoenix/source-uri: "deepseek-ai/DeepSeek-R1-0528"
+    phoenix/version: "4236a6af538feda4548eca9ab308586007567f52"
+    phoenix/size-gib: "710"
+    phoenix/credentials: "false"
+    phoenix/min-gpu: "h100"
+spec:
+  type: phoenix-model
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-aws-fsx-csi-driver
+    - resource:default/component-model-weights
+    - resource:default/component-llm-d
+    - resource:default/component-vllm

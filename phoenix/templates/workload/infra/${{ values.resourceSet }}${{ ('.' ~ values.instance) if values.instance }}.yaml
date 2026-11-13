@@ -1,0 +1,38 @@
+{%- set c = values.cluster -%}
+{%- set a = values.account -%}
+# Written by Backstage (template phoenix-workload) for model serving.
+organisation: ${{ a['phoenix/organisation'] }}
+group: ${{ c['phoenix/group'] }}
+{%- if values.resourceSet == 'model-store' %}
+environment: shared
+{%- else %}
+environment: ${{ c['phoenix/environment'] }}
+{%- if c['phoenix/requester'] %}
+requester: ${{ c['phoenix/requester'] }}
+{%- endif %}
+{%- endif %}
+tier: ${{ c['phoenix/tier'] }}
+region: ${{ c['phoenix/region'] }}
+account_id: "${{ a['phoenix/account-id'] }}"
+# The OIDC role the pipeline signs in as, and the deploy role it assumes in
+# each account (one name in every workload account): the account registry.
+oidc_role_arn: ${{ (a['phoenix/oidc-role-arn'] or '') | dump }}
+deploy_role_name: ${{ (a['phoenix/deploy-role-name'] or '') | dump }}
+module_ref: main
+state:
+  bucket: ${{ a['phoenix/state-bucket'] }}
+  region: ${{ a['phoenix/state-region'] }}
+tags:
+  owner.team: ${{ c['phoenix/group'] }}
+{%- if values.resourceSet == 'model-store' %}
+  Reason: "model weights for the ${{ c['phoenix/group'] }} group"
+  # The weights outlive every environment; the plan requires it.
+  LongLive: true
+spec: {}
+{%- else %}
+  Reason: "model cache for cluster ${{ c['phoenix/cluster'] }}"
+  # The tier's FSx lifecycle (environment form): true keeps the warm cache
+  # through weekend teardowns and costs FSx hours; it needs a LongLive network.
+  LongLive: ${{ 'true' if c['phoenix/model-cache-long-live'] == 'true' else 'false' }}
+spec: {}
+{%- endif %}

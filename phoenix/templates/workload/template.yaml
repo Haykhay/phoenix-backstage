@@ -1,0 +1,467 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: phoenix-workload
+  title: Phoenix workload
+  description: >-
+    Choose what you want to run on a cluster: a workload type, and optionally a
+    database type, a GPU type and a model. The platform decides the components,
+    versions and sizes, and writes one k8s-installs unit per component.
+  tags: [phoenix, kubernetes, terraform]
+spec:
+  owner: group:default/platform
+  type: workload
+
+  parameters:
+    - title: Where
+      required: [cluster]
+      properties:
+        cluster:
+          title: Cluster
+          type: string
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: Resource
+              spec.type: phoenix-cluster
+    - title: What
+      required: [workload, reason]
+      properties:
+        workload:
+          title: Workload type
+          type: string
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: Resource
+              spec.type: phoenix-workload
+        database:
+          title: Database type
+          type: string
+          ui:help: Optional.
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: Resource
+              spec.type: phoenix-database
+        databaseName:
+          title: Database name
+          type: string
+          default: app
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          ui:help: Only used with a database type.
+        storage:
+          title: Storage type
+          type: string
+          ui:help: Optional. A disk for one pod, or a file system many pods share.
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: Resource
+              spec.type: phoenix-storage
+        storageName:
+          title: Storage name
+          type: string
+          default: data
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          ui:help: Only used with a storage type. The claim's name; pods mount it by this name.
+        storageNamespace:
+          title: Storage namespace
+          type: string
+          default: apps
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          ui:help: Only used with a storage type. Where the pods that mount it run.
+        storageSizeGib:
+          title: Storage size (GiB)
+          type: integer
+          default: 100
+          minimum: 1
+          ui:help: Only used with a storage type. A shared file system is 1200 GiB, or a multiple of 2400 GiB.
+        gpu:
+          title: GPU node type
+          type: string
+          ui:help: Required for model serving.
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: Resource
+              spec.type: phoenix-gpu
+        reason:
+          title: Reason
+          type: string
+
+    # Model serving: every model loads from the group's weights bucket through
+    # the cluster's FSx cache; the copy from its source happens once.
+    - title: Model
+      properties:
+        modelFrom:
+          title: Model
+          type: string
+          default: none
+          enum: [none, catalog, other]
+          enumNames: [No model, A curated model, Other (give its source)]
+      dependencies:
+        modelFrom:
+          oneOf:
+            - properties:
+                modelFrom: { const: none }
+            - required: [model]
+              properties:
+                modelFrom: { const: catalog }
+                model:
+                  title: Curated model
+                  type: string
+                  ui:help: Its source, pinned version and size are filled in.
+                  ui:field: EntityPicker
+                  ui:options:
+                    catalogFilter:
+                      kind: Resource
+                      spec.type: phoenix-model
+            - required: [modelName, sourceType, sourceUri, version, sizeGib]
+              properties:
+                modelFrom: { const: other }
+                modelName:
+                  title: Model name
+                  type: string
+                  pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+                  ui:help: Used in paths and as the served model name, e.g. llama-3-1-70b.
+                sourceType:
+                  title: Source type
+                  type: string
+                  default: huggingface
+                  enum: [huggingface, s3, https]
+                sizeGib:
+                  title: Scratch size (GiB)
+                  type: integer
+                  default: 200
+                  minimum: 10
+                  ui:help: At least the model's full download.
+                credentials:
+                  title: The source needs credentials
+                  type: boolean
+                  default: false
+              dependencies:
+                sourceType:
+                  oneOf:
+                    - properties:
+                        sourceType: { const: huggingface }
+                        sourceUri:
+                          title: Hugging Face repo
+                          type: string
+                          pattern: '^[\w.-]+/[\w.-]+$'
+                          ui:help: "<org>/<repo>. Token (if gated): Secrets Manager <organisation>/<env_id>/models/hf-token, property token."
+                        version:
+                          title: Commit SHA
+                          type: string
+                          pattern: '^[0-9a-f]{40}$'
+                          ui:help: The 40-character commit, never a branch or tag.
+                    - properties:
+                        sourceType: { const: s3 }
+                        sourceUri:
+                          title: S3 prefix
+                          type: string
+                          pattern: '^s3://[a-z0-9.-]{3,63}/.*$'
+                          ui:help: "s3://<bucket>/<prefix>/. The bucket's policy must grant model-store's writer role read."
+                        version:
+                          title: Version label
+                          type: string
+                          pattern: '^[A-Za-z0-9._-]{1,64}$'
+                    - required: [sha256]
+                      properties:
+                        sourceType: { const: https }
+                        sourceUri:
+                          title: HTTPS address
+                          type: string
+                          pattern: '^https://'
+                          ui:help: "Token (if needed): Secrets Manager <organisation>/<env_id>/models/<model name>-source, property token, sent as a Bearer token."
+                        version:
+                          title: Version label
+                          type: string
+                          pattern: '^[A-Za-z0-9._-]{1,64}$'
+                        sha256:
+                          title: SHA-256 of the download
+                          type: string
+                          pattern: '^[0-9a-f]{64}$'
+
+    # llm-d options. With none, the model is vLLM + the endpoint picker. The
+    # plan enforces the same rules: NVIDIA only; multi-node, P/D and wide EP
+    # need an EFA GPU type; wide EP needs multi-node.
+    - title: Model options (llm-d)
+      properties:
+        gpusPerReplica:
+          title: GPUs per replica (per node with multi-node)
+          type: integer
+          default: 1
+          minimum: 1
+          ui:help: Up to the GPU type's per-node count; a 70B model needs 4-8 large GPUs.
+        llmd:
+          title: llm-d options
+          type: object
+          description: NVIDIA GPU types only (the plan rejects them on Trainium/Inferentia).
+          properties:
+            routing: { title: Cache-aware routing, type: boolean, default: false }
+            kv_offload: { title: KV cache offload to CPU, type: boolean, default: false }
+            flow_control: { title: Flow control (multi-tenant QoS; always on when shared in uat/prod), type: boolean, default: false }
+            autoscaling: { title: Autoscaling, type: boolean, default: false }
+            scale_to_zero: { title: 'Scale to zero (sandbox and uat; needs Autoscaling): no GPU after 30 idle minutes, the next caller gets 503 for a few minutes while it wakes', type: boolean, default: false }
+            pd_disaggregation: { title: Prefill/decode disaggregation (EFA GPU type), type: boolean, default: false }
+            multi_node: { title: Multi-node replicas (EFA GPU type), type: boolean, default: false }
+          dependencies:
+            multi_node:
+              oneOf:
+                - properties:
+                    multi_node: { const: false }
+                - required: [nodes_per_replica]
+                  properties:
+                    multi_node: { const: true }
+                    nodes_per_replica: { title: Nodes per replica, type: integer, default: 2, minimum: 2 }
+                    wide_ep: { title: Wide expert parallelism (MoE), type: boolean, default: false }
+            pd_disaggregation:
+              oneOf:
+                - properties:
+                    pd_disaggregation: { const: false }
+                - properties:
+                    pd_disaggregation: { const: true }
+                    prefill_replicas: { title: Prefill replicas, type: integer, default: 1, minimum: 1 }
+                    decode_replicas: { title: Decode replicas, type: integer, default: 1, minimum: 1 }
+
+    # Who can call it: the owner always; in uat/prod, other teams' environments
+    # once the owner approves (the plan rejects consumers in sandbox/stage).
+    - title: Access
+      properties:
+        consumers:
+          title: Consumers (uat/prod only)
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            ui:field: EntityPicker
+            ui:options:
+              catalogFilter:
+                kind: Resource
+                spec.type: phoenix-cluster
+          ui:help: Environments of other teams allowed to call this model, by their VPC CIDRs.
+        consumerRequestsPerMinute:
+          title: Requests per minute per consumer (optional)
+          type: integer
+          minimum: 1
+          ui:help: >-
+            Caps each consumer above at this many requests a minute per gateway replica; over it they get 429.
+            Your own team is never limited. Not available with OIDC. Leave empty for no limit.
+        failoverHostname:
+          title: Failover hostname (optional)
+          type: string
+          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?\.[a-z0-9.-]+$'
+          ui:help: >-
+            A name this model shares with the same model on another cluster of this environment, e.g.
+            llama.<the environment's internal zone>. Route 53 sends callers to the PRIMARY cluster and to the
+            SECONDARY when the primary's gateway is down. Request the model on both clusters.
+        failoverRole:
+          title: Failover role
+          type: string
+          default: PRIMARY
+          enum: [PRIMARY, SECONDARY]
+          ui:help: Only used with a failover hostname. One cluster PRIMARY, the other SECONDARY.
+        oidcIssuer:
+          title: OIDC issuer (optional)
+          type: string
+          pattern: '^https://'
+          ui:help: Also require a token from your IdP; the consumer is its azp claim.
+        oidcJwksUri:
+          title: OIDC JWKS address
+          type: string
+          pattern: '^https://'
+        oidcAudience:
+          title: OIDC audience
+          type: string
+
+  steps:
+    - id: cluster
+      name: Read the cluster
+      action: catalog:fetch
+      input:
+        entityRef: ${{ parameters.cluster }}
+
+    - id: account
+      name: Read the group's account
+      action: catalog:fetch
+      input:
+        entityRef: resource:default/${{ steps.cluster.output.entity.metadata.annotations['phoenix/group'] }}-aws-account
+
+    - id: baseline
+      name: Read the baseline
+      action: catalog:fetch
+      input:
+        entityRef: resource:default/workload-baseline
+
+    - id: workload
+      name: Read the workload type
+      action: catalog:fetch
+      input:
+        entityRef: ${{ parameters.workload }}
+
+    - id: database
+      if: ${{ parameters.database }}
+      name: Read the database type
+      action: catalog:fetch
+      input:
+        entityRef: ${{ parameters.database }}
+
+    - id: storage
+      if: ${{ parameters.storage }}
+      name: Read the storage type
+      action: catalog:fetch
+      input:
+        entityRef: ${{ parameters.storage }}
+
+    - id: gpu
+      if: ${{ parameters.gpu }}
+      name: Read the GPU type
+      action: catalog:fetch
+      input:
+        entityRef: ${{ parameters.gpu }}
+
+    - id: model
+      if: ${{ parameters.modelFrom == 'catalog' }}
+      name: Read the model
+      action: catalog:fetch
+      input:
+        entityRef: ${{ parameters.model }}
+
+    - id: consumers
+      if: ${{ parameters.consumers | length > 0 }}
+      name: Read the consumers' environments
+      action: catalog:fetch
+      input:
+        entityRefs: ${{ parameters.consumers if parameters.consumers else [] }}
+
+    # Every option lists all the components it needs (spec.dependsOn); one
+    # unit per component. A component in several options is written again
+    # with identical content.
+    - id: units-baseline
+      name: Write baseline units
+      each: ${{ steps.baseline.output.entity.spec.dependsOn }}
+      action: fetch:template
+      input: &unit
+        url: ./skeleton
+        replace: true
+        targetPath: >-
+          k8s-installs/environments/${{ steps.cluster.output.entity.metadata.annotations['phoenix/tier'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/env-id'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/region'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/cluster'] }}
+        values:
+          component: ${{ each.value | replace('resource:default/component-', '') }}
+          instance: >-
+            ${{ parameters.storageName if (each.value | replace('resource:default/component-', '')) == 'volume' else (parameters.databaseName if (each.value | replace('resource:default/component-', '')) in ['cloudnative-pg-cluster', 'valkey-redis-cluster', 'strimzi-kafka-cluster'] else ((parameters.gpu | parseEntityRef | pick('name') | replace('gpu-', '')) if (each.value | replace('resource:default/component-', '')) == 'karpenter-nodepool' else (((parameters.model | parseEntityRef | pick('name') | replace('model-', '')) if parameters.modelFrom == 'catalog' else parameters.modelName) if (each.value | replace('resource:default/component-', '')) in ['vllm', 'model-weights'] else ''))) }}
+          cluster: ${{ steps.cluster.output.entity.metadata.annotations }}
+          account: ${{ steps.account.output.entity.metadata.annotations }}
+          gpuType: ${{ (parameters.gpu | parseEntityRef | pick('name') | replace('gpu-', '')) if parameters.gpu else '' }}
+          gpu: ${{ steps.gpu.output.entity.metadata.annotations if parameters.gpu else {} }}
+          # The model: a curated entity's annotations, or the form's "Other" fields.
+          model: >-
+            ${{ {
+              'slug': steps.model.output.entity.metadata.name | replace('model-', ''),
+              'sourceType': steps.model.output.entity.metadata.annotations['phoenix/source-type'],
+              'sourceUri': steps.model.output.entity.metadata.annotations['phoenix/source-uri'],
+              'version': steps.model.output.entity.metadata.annotations['phoenix/version'],
+              'sizeGib': steps.model.output.entity.metadata.annotations['phoenix/size-gib'],
+              'credentials': steps.model.output.entity.metadata.annotations['phoenix/credentials'] == 'true',
+              'sha256': ''
+            } if parameters.modelFrom == 'catalog' else ({
+              'slug': parameters.modelName, 'sourceType': parameters.sourceType, 'sourceUri': parameters.sourceUri,
+              'version': parameters.version, 'sizeGib': parameters.sizeGib, 'credentials': parameters.credentials,
+              'sha256': parameters.sha256 or ''
+            } if parameters.modelFrom == 'other' else {}) }}
+          llmd: ${{ parameters.llmd or {} }}
+          gpusPerReplica: ${{ parameters.gpusPerReplica or 1 }}
+          consumers: ${{ steps.consumers.output.entities if (parameters.consumers | length > 0) else [] }}
+          consumerRequestsPerMinute: ${{ parameters.consumerRequestsPerMinute if parameters.consumerRequestsPerMinute is defined else '' }}
+          oidc: >-
+            ${{ {'issuer': parameters.oidcIssuer, 'jwksUri': parameters.oidcJwksUri, 'audience': parameters.oidcAudience} if parameters.oidcIssuer else {} }}
+          failover: >-
+            ${{ {'hostname': parameters.failoverHostname, 'role': parameters.failoverRole} if parameters.failoverHostname else {} }}
+          storage: >-
+            ${{ {'class': steps.storage.output.entity.metadata.annotations['phoenix/storage-class'], 'namespace': parameters.storageNamespace, 'sizeGib': parameters.storageSizeGib} if parameters.storage else {} }}
+          reason: ${{ parameters.reason }}
+
+    - id: units-workload
+      name: Write workload units
+      each: ${{ steps.workload.output.entity.spec.dependsOn }}
+      action: fetch:template
+      input: *unit
+
+    - id: units-database
+      if: ${{ parameters.database }}
+      name: Write database units
+      # each is resolved even when if is false, so it needs a fallback.
+      each: ${{ steps.database.output.entity.spec.dependsOn if parameters.database else [] }}
+      action: fetch:template
+      input: *unit
+
+    - id: units-storage
+      if: ${{ parameters.storage }}
+      name: Write storage units
+      each: ${{ steps.storage.output.entity.spec.dependsOn if parameters.storage else [] }}
+      action: fetch:template
+      input: *unit
+
+    - id: units-gpu
+      if: ${{ parameters.gpu }}
+      name: Write GPU units
+      # each is resolved even when if is false, so it needs a fallback.
+      each: ${{ steps.gpu.output.entity.spec.dependsOn if parameters.gpu else [] }}
+      action: fetch:template
+      input: *unit
+
+    # A model's components: the same for a curated model and "Other"; llm-d
+    # with an option on, or when consumers in uat/prod force flow control.
+    - id: units-model
+      if: ${{ parameters.modelFrom != 'none' }}
+      name: Write model units
+      # each is resolved even when if is false, so it needs a fallback.
+      each: >-
+        ${{ (['resource:default/component-aws-fsx-csi-driver', 'resource:default/component-model-weights']
+          + (['resource:default/component-llm-d'] if ((parameters.llmd and (parameters.llmd.routing or parameters.llmd.kv_offload or parameters.llmd.flow_control or parameters.llmd.autoscaling or parameters.llmd.pd_disaggregation or parameters.llmd.multi_node)) or ((parameters.consumers | length > 0) and steps.cluster.output.entity.metadata.annotations['phoenix/tier'] in ['uat', 'prod'])) else [])
+          + ['resource:default/component-vllm']) if parameters.modelFrom != 'none' else [] }}
+      action: fetch:template
+      input: *unit
+
+    # Infrastructure for model serving: the group's weights bucket (once per
+    # group and region, written again identically) and the cluster's FSx cache,
+    # long-lived per the tier's setting (environment form).
+    - id: infra-model-store
+      if: ${{ parameters.modelFrom != 'none' }}
+      name: Write the weights bucket unit
+      action: fetch:template
+      input:
+        url: ./infra
+        replace: true
+        targetPath: >-
+          infrastructure/environments/${{ steps.cluster.output.entity.metadata.annotations['phoenix/tier'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/group'] }}-shared/${{ steps.cluster.output.entity.metadata.annotations['phoenix/region'] }}
+        values:
+          resourceSet: model-store
+          instance: ''
+          cluster: ${{ steps.cluster.output.entity.metadata.annotations }}
+          account: ${{ steps.account.output.entity.metadata.annotations }}
+
+    - id: infra-model-cache
+      if: ${{ parameters.modelFrom != 'none' }}
+      name: Write the cluster's model cache unit
+      action: fetch:template
+      input:
+        url: ./infra
+        replace: true
+        targetPath: >-
+          infrastructure/environments/${{ steps.cluster.output.entity.metadata.annotations['phoenix/tier'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/env-id'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/region'] }}
+        values:
+          resourceSet: model-cache
+          instance: ${{ steps.cluster.output.entity.metadata.annotations['phoenix/cluster'] }}
+          cluster: ${{ steps.cluster.output.entity.metadata.annotations }}
+          account: ${{ steps.account.output.entity.metadata.annotations }}
+
+  output:
+    text:
+      - title: Next
+        content: >-
+          Units written under k8s-installs/environments/ (and, for a model,
+          model-store and model-cache under infrastructure/environments/). The orchestrator
+          installs them in the order the components' dependsOn gives, and lets
+          you know when the cluster is ready.

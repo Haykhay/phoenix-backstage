@@ -1,0 +1,119 @@
+# GPU node types. Each becomes a karpenter-nodepool.<type> unit with these values.
+# accelerator: nvidia | neuron (vllm hardware follows it); efa: multi-node serving.
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gpu-l4
+  title: NVIDIA L4
+  description: "NVIDIA L4 (g6), 24 GB."
+  annotations:
+    phoenix/instance-families: "g6"
+    phoenix/gpu-count-max: "1"
+    phoenix/accelerator: "nvidia"
+    phoenix/efa: "false"
+spec:
+  type: phoenix-gpu
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-karpenter
+    - resource:default/component-karpenter-nodepool
+    - resource:default/component-nvidia-gpu-operator
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gpu-a10g
+  title: NVIDIA A10G
+  description: "NVIDIA A10G (g5), 24 GB, up to 4 per node."
+  annotations:
+    phoenix/instance-families: "g5"
+    phoenix/gpu-count-max: "4"
+    phoenix/accelerator: "nvidia"
+    phoenix/efa: "false"
+spec:
+  type: phoenix-gpu
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-karpenter
+    - resource:default/component-karpenter-nodepool
+    - resource:default/component-nvidia-gpu-operator
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gpu-l4-shared
+  title: NVIDIA L4, shared 4 ways
+  description: "NVIDIA L4 (g6), 24 GB, time-sliced: up to 4 small models per GPU, about 5 GB each. No isolation between them."
+  annotations:
+    phoenix/instance-families: "g6"
+    phoenix/gpu-count-max: "1"
+    phoenix/accelerator: "nvidia"
+    phoenix/efa: "false"
+    phoenix/time-slice-replicas: "4"
+spec:
+  type: phoenix-gpu
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-karpenter
+    - resource:default/component-karpenter-nodepool
+    - resource:default/component-nvidia-gpu-operator
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gpu-l40s
+  title: NVIDIA L40S
+  description: "NVIDIA L40S (g6e), 48 GB."
+  annotations:
+    phoenix/instance-families: "g6e"
+    phoenix/gpu-count-max: "1"
+    phoenix/accelerator: "nvidia"
+    phoenix/efa: "false"
+spec:
+  type: phoenix-gpu
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-karpenter
+    - resource:default/component-karpenter-nodepool
+    - resource:default/component-nvidia-gpu-operator
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gpu-h100
+  title: NVIDIA H100 (EFA)
+  description: "NVIDIA H100 (p5), 80 GB, 8 per node, EFA. On-demand is scarce: plan on a reservation (karpenter-nodepool, What you can achieve)."
+  annotations:
+    phoenix/instance-families: "p5"
+    phoenix/gpu-count-max: "8"
+    # Four nodes: a two-node prefill and a two-node decode group (day-one MoE).
+    phoenix/gpu-limit: "32"
+    phoenix/accelerator: "nvidia"
+    phoenix/efa: "true"
+spec:
+  type: phoenix-gpu
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-karpenter
+    - resource:default/component-karpenter-nodepool
+    - resource:default/component-nvidia-gpu-operator
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: gpu-trn2
+  title: AWS Trainium2
+  description: "AWS Trainium2 (trn2), 16 devices per node. Default serving path only (no llm-d options)."
+  annotations:
+    phoenix/instance-families: "trn2"
+    phoenix/gpu-count-max: "16"
+    phoenix/accelerator: "neuron"
+    phoenix/efa: "false"
+spec:
+  type: phoenix-gpu
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-karpenter
+    - resource:default/component-karpenter-nodepool
+    - resource:default/component-neuron-device-plugin

@@ -1,0 +1,32 @@
+# Storage types offered in the workload form. Each names a cloud-neutral
+# StorageClass (phoenix/storage-class) that every cloud's platform provides.
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: storage-block
+  title: Block storage
+  description: "A disk for one pod at a time (ReadWriteOnce), encrypted. Any size in GiB."
+  annotations:
+    phoenix/storage-class: "phoenix-block"
+spec:
+  type: phoenix-storage
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-cluster-config
+    - resource:default/component-volume
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: storage-shared
+  title: Shared file system
+  description: "A file system many pods mount at once (ReadWriteMany). 1200 GiB, or a multiple of 2400 GiB."
+  annotations:
+    phoenix/storage-class: "phoenix-shared"
+spec:
+  type: phoenix-storage
+  owner: group:default/platform
+  dependsOn:
+    - resource:default/component-cluster-config
+    - resource:default/component-aws-fsx-csi-driver
+    - resource:default/component-volume

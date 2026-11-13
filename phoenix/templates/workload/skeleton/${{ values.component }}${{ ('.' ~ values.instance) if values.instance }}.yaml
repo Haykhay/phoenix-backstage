@@ -1,0 +1,129 @@
+{%- set c = values.cluster -%}
+{%- set a = values.account -%}
+# Written by Backstage (template phoenix-workload). Identity from the cluster
+# and account entities; versions and sizes are the component's defaults.
+organisation: ${{ a['phoenix/organisation'] }}
+group: ${{ c['phoenix/group'] }}
+environment: ${{ c['phoenix/environment'] }}
+{%- if c['phoenix/requester'] %}
+requester: ${{ c['phoenix/requester'] }}
+{%- endif %}
+tier: ${{ c['phoenix/tier'] }}
+region: ${{ c['phoenix/region'] }}
+cluster: "${{ c['phoenix/cluster'] }}"
+account_id: "${{ a['phoenix/account-id'] }}"
+# The OIDC role the pipeline signs in as, and the deploy role it assumes in
+# each account (one name in every workload account): the account registry.
+oidc_role_arn: ${{ (a['phoenix/oidc-role-arn'] or '') | dump }}
+deploy_role_name: ${{ (a['phoenix/deploy-role-name'] or '') | dump }}
+module_ref: main
+state:
+  bucket: ${{ a['phoenix/state-bucket'] }}
+  region: ${{ a['phoenix/state-region'] }}
+tags:
+  owner.team: ${{ c['phoenix/group'] }}
+  Reason: ${{ values.reason | dump }}
+  LongLive: false
+{%- if values.component == 'argo-cd' %}
+spec:
+  repo_url: ${{ a['phoenix/apps-repo'] | dump }}
+{%- elif values.component == 'kyverno' and c['phoenix/gpu-quota'] %}
+spec:
+  quotas:
+    models: { nvidia: ${{ c['phoenix/gpu-quota'] }}, neuron: ${{ c['phoenix/gpu-quota'] }} }
+{%- elif values.component == 'grafana-stack' and (c['phoenix/global-receiver'] == 'true' or a['phoenix/global-metrics-url']) %}
+spec:
+{%- if c['phoenix/global-receiver'] == 'true' %}
+  # The management cluster (ADR-0011): receives the other clusters' series.
+  global_receiver: true
+{%- else %}
+  # Send the allowlisted series to the management cluster (ADR-0011).
+  global_metrics:
+    remote_write_url: ${{ a['phoenix/global-metrics-url'] | dump }}
+{%- endif %}
+{%- elif values.component == 'karpenter-nodepool' %}
+spec:
+  instance_families: ${{ values.gpu['phoenix/instance-families'].split(',') | dump }}
+  gpu_count_max: ${{ values.gpu['phoenix/gpu-count-max'] }}
+{%- if values.gpu['phoenix/gpu-limit'] %}
+  gpu_limit: ${{ values.gpu['phoenix/gpu-limit'] }}
+{%- endif %}
+  accelerator: ${{ values.gpu['phoenix/accelerator'] or 'nvidia' }}
+  efa: ${{ 'true' if values.gpu['phoenix/efa'] == 'true' else 'false' }}
+{%- if values.gpu['phoenix/time-slice-replicas'] %}
+  time_slice_replicas: ${{ values.gpu['phoenix/time-slice-replicas'] }}
+{%- endif %}
+{%- elif values.component == 'volume' %}
+spec:
+  namespace: ${{ values.storage.namespace | dump }}
+  storage_class: ${{ values.storage['class'] | dump }}
+  size_gib: ${{ values.storage.sizeGib }}
+{%- elif values.component == 'model-weights' %}
+{%- set m = values.model %}
+spec:
+  model: ${{ m.slug | dump }}
+  source:
+    type: ${{ m.sourceType }}
+    uri: ${{ m.sourceUri | dump }}
+    credentials: ${{ 'true' if m.credentials else 'false' }}
+  version: ${{ m.version | dump }}
+{%- if m.sha256 %}
+  sha256: ${{ m.sha256 | dump }}
+{%- endif %}
+  size_gib: ${{ m.sizeGib }}
+{%- elif values.component == 'vllm' %}
+{%- set m = values.model %}
+{%- set o = values.llmd %}
+{%- set ownerCidrs = c['phoenix/vpc-cidrs'].split(',') if c['phoenix/vpc-cidrs'] else [] %}
+spec:
+  version: ${{ m.version | dump }}
+  gpu: ${{ values.gpuType | dump }}
+  hardware: ${{ values.gpu['phoenix/accelerator'] or 'nvidia' }}
+  gpus_per_replica: ${{ values.gpusPerReplica }}
+{%- if values.gpu['phoenix/time-slice-replicas'] %}
+  # A time-sliced GPU: this model's share of its memory.
+  gpu_memory_utilization: ${{ (0.9 / (values.gpu['phoenix/time-slice-replicas'] | int)) | round(2, 'floor') }}
+{%- endif %}
+{%- if o.multi_node %}
+  nodes_per_replica: ${{ o.nodes_per_replica }}
+{%- endif %}
+{%- if o.pd_disaggregation %}
+  prefill_replicas: ${{ o.prefill_replicas }}
+  decode_replicas: ${{ o.decode_replicas }}
+{%- endif %}
+  llm_d:
+    routing: ${{ 'true' if o.routing else 'false' }}
+    kv_offload: ${{ 'true' if o.kv_offload else 'false' }}
+    flow_control: ${{ 'true' if o.flow_control else 'false' }}
+    autoscaling: ${{ 'true' if o.autoscaling else 'false' }}
+    scale_to_zero: ${{ 'true' if o.scale_to_zero else 'false' }}
+    multi_node: ${{ 'true' if o.multi_node else 'false' }}
+    pd_disaggregation: ${{ 'true' if o.pd_disaggregation else 'false' }}
+    wide_ep: ${{ 'true' if (o.multi_node and o.wide_ep) else 'false' }}
+  access:
+    # The owner environment's VPC CIDR(s) (cluster entity phoenix/vpc-cidrs);
+    # none yet = open on the internal gateway, as before.
+    owner_cidrs: ${{ ownerCidrs | dump }}
+    consumers:
+{%- for e in values.consumers %}
+      ${{ e.metadata.annotations['phoenix/group'] ~ '-' ~ e.metadata.annotations['phoenix/environment'] }}:
+        cidrs: ${{ (e.metadata.annotations['phoenix/vpc-cidrs'].split(',') if e.metadata.annotations['phoenix/vpc-cidrs'] else []) | dump }}
+{%- if values.consumerRequestsPerMinute is number %}
+        requests_per_minute: ${{ values.consumerRequestsPerMinute }}
+{%- endif %}
+{%- else %} {}
+{%- endfor %}
+{%- if values.oidc.issuer %}
+    oidc:
+      issuer: ${{ values.oidc.issuer | dump }}
+      jwks_uri: ${{ values.oidc.jwksUri | dump }}
+      audiences: ${{ ([values.oidc.audience] if values.oidc.audience else []) | dump }}
+{%- endif %}
+{%- if values.failover.hostname %}
+  failover:
+    hostname: ${{ values.failover.hostname | dump }}
+    role: ${{ values.failover.role }}
+{%- endif %}
+{%- else %}
+spec: {}
+{%- endif %}

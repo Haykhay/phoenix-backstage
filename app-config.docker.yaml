@@ -27,6 +27,10 @@ catalog:
       target: ./phoenix/templates/workload/template.yaml
       rules:
         - allow: [Template]
+    - type: file
+      target: ./phoenix/templates/new-group/template.yaml
+      rules:
+        - allow: [Template]
     # Components, workload types, databases, GPUs, models.
     - type: file
       target: ./phoenix/catalog/*.yaml

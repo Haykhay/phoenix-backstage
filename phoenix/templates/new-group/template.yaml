@@ -1,0 +1,83 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: phoenix-new-group
+  title: Phoenix new group account
+  description: >-
+    Platform-team only. Request a new AWS account for a group: commit one
+    account-request file to phoenix-aws-org and open a PR. AFT provisions the
+    account via Control Tower; no account ID is chosen here — Control Tower
+    assigns it and the registry captures it.
+  tags: [phoenix, aws, account, platform]
+spec:
+  # Platform-owned: surface/execution is restricted to the platform group via
+  # catalog permissions. Account vending is a privileged, root-of-trust action.
+  owner: group:default/platform
+  type: account
+
+  parameters:
+    - title: The group
+      required: [group, email, ou, organisation, base_domain, apps_repo]
+      properties:
+        group:
+          title: Group
+          type: string
+          description: Group slug; also the registry partition key.
+          pattern: '^[a-z][a-z0-9-]{1,30}$'
+        email:
+          title: Account root email
+          type: string
+          format: email
+        ou:
+          title: Target OU
+          type: string
+          description: Which Control Tower-managed OU the account is enrolled into.
+          enum:
+            - sandbox
+            - workloads/nonprod
+            - workloads/production
+        organisation:
+          title: Organisation
+          type: string
+          pattern: '^[a-z][a-z0-9-]{1,30}$'
+        base_domain:
+          title: Base domain
+          type: string
+          pattern: '^([a-z0-9-]+\.)+[a-z]{2,}$'
+        apps_repo:
+          title: GitOps apps repo
+          type: string
+          description: The group's GitOps repository (git ssh or https URL).
+          pattern: '^(git@|https://)'
+
+  steps:
+    - id: render
+      name: Render the account request
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: aft/account-requests
+        values:
+          group: ${{ parameters.group }}
+          email: ${{ parameters.email }}
+          ou: ${{ parameters.ou }}
+          organisation: ${{ parameters.organisation }}
+          base_domain: ${{ parameters.base_domain }}
+          apps_repo: ${{ parameters.apps_repo }}
+
+    - id: pr
+      name: Open the account-request PR
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=Haykhay&repo=phoenix-aws-org
+        branchName: new-group/${{ parameters.group }}
+        title: 'account request: ${{ parameters.group }}'
+        description: >-
+          New group account request for `${{ parameters.group }}` → OU
+          `${{ parameters.ou }}`. AFT vends the account via Control Tower and the
+          registry captures the account ID.
+
+  output:
+    links:
+      - title: Account request PR
+        url: ${{ steps.pr.output.remoteUrl }}

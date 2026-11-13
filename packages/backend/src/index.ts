@@ -38,6 +38,9 @@ backend.add(
 // See https://backstage.io/docs/features/software-catalog/configuration#subscribing-to-catalog-errors
 backend.add(import('@backstage/plugin-catalog-backend-module-logs'));
 
+// Phoenix: project the DynamoDB account registry into aws-account entities.
+backend.add(import('@internal/plugin-catalog-backend-module-aws-accounts'));
+
 // permission plugin
 backend.add(import('@backstage/plugin-permission-backend'));
 // See https://backstage.io/docs/permissions/getting-started for how to create your own permission policy

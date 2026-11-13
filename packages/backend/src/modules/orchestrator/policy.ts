@@ -31,6 +31,16 @@ export function requiredApprovalGates(
   policy: ApprovalPolicy,
 ): ApprovalGate[] {
   const gates: ApprovalGate[] = [];
+  if (request.action === 'retain') {
+    if (!policy.retentionApprovalGroup) {
+      throw new Error('retention approval group is not configured');
+    }
+    return [{
+      group: policy.retentionApprovalGroup,
+      reason: 'weekend-retention',
+      unitPaths: request.units.map(unit => unit.path),
+    }];
+  }
   const tierGroup = policy.tierApprovalGroups?.[request.tier];
   if (tierGroup) {
     gates.push({

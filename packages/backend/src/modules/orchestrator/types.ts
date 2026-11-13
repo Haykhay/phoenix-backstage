@@ -20,9 +20,11 @@ export interface RequestUnit extends OrchestrationUnit {
 export interface OrchestrationRequestInput {
   source: { owner: string; repo: string; commit: string };
   requester: string;
-  action: 'apply' | 'destroy';
+  action: 'apply' | 'destroy' | 'retain';
   tier: string;
   units: readonly RequestUnit[];
+  reason?: string;
+  retentionExpiresAt?: string;
 }
 
 export interface ApprovalGate {
@@ -41,6 +43,7 @@ export interface ApprovalDecision {
 export interface ApprovalPolicy {
   tierApprovalGroups?: Readonly<Record<string, string>>;
   componentApprovalGroups?: Readonly<Record<string, string>>;
+  retentionApprovalGroup?: string;
 }
 
 export interface IdleEvidence {
@@ -55,6 +58,7 @@ export interface ReclaimableEnvironment {
   retentionExpiresAt?: string;
   reclaimReason?: 'friday' | 'idle';
   idleEvidence?: IdleEvidence;
+  notifiedAt?: string;
 }
 
 

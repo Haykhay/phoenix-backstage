@@ -10,6 +10,8 @@ import { createBackend } from '@backstage/backend-defaults';
 
 const backend = createBackend();
 
+backend.add(import('./modules/orchestrator/module'));
+
 backend.add(import('@backstage/plugin-app-backend'));
 backend.add(import('@backstage/plugin-proxy-backend'));
 

@@ -191,6 +191,21 @@ phoenix:
     tableName: phoenix-account-registry
     region: eu-west-1
     # endpoint: http://localhost:4566
+  orchestrator:
+    mode: ${PHOENIX_ORCHESTRATOR_MODE:-github}
+    github:
+      owner: ${PHOENIX_AWS_GITHUB_OWNER:-Haykhay}
+      repo: ${PHOENIX_AWS_GITHUB_REPO:-phoenix-aws}
+      token: ${GITHUB_TOKEN}
+    approvals:
+      tiers:
+        stage: group:default/platform-stage-approvers
+        prod: group:default/platform-prod-approvers
+      retentionGroup: group:default/platform-sandbox-retention-approvers
+    reclamation:
+      idleDays: 7
+      graceHours: 24
+      autoTeardownIdle: false
 
 catalog:
   import:

@@ -1,5 +1,8 @@
 # backstage
 
+Phoenix deployment, approval, retention, and reclamation orchestration is owned
+by Backstage. See [the orchestrator runbook](docs/orchestrator/README.md).
+
 Local Backstage for Phoenix, built and run entirely in Docker (no Node on the host).
 
 ```bash

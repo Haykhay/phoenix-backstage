@@ -7,6 +7,10 @@ auth:
       # Sign in as the catalog's guest (a research member), so the template sees a user.
       userEntityRef: user:default/guest
 
+phoenix:
+  orchestrator:
+    mode: floci
+
 catalog:
   # Replaces the example locations. ./phoenix is mounted, not baked in, so
   # edits show up on the next catalog refresh without a rebuild.

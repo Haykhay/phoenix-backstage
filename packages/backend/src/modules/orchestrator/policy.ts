@@ -20,7 +20,7 @@ function canonical(value: unknown): unknown {
   return value;
 }
 
-export function requestDigest(request: OrchestrationRequestInput): string {
+export function requestDigest(request: unknown): string {
   return createHash('sha256')
     .update(JSON.stringify(canonical(request)))
     .digest('hex');

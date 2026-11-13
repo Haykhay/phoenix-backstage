@@ -193,6 +193,10 @@ phoenix:
     # endpoint: http://localhost:4566
   orchestrator:
     mode: ${PHOENIX_ORCHESTRATOR_MODE:-github}
+    github:
+      owner: ${PHOENIX_AWS_GITHUB_OWNER:-Haykhay}
+      repo: ${PHOENIX_AWS_GITHUB_REPO:-phoenix-aws}
+      token: ${GITHUB_TOKEN}
     approvals:
       tiers:
         stage: group:default/platform-stage-approvers

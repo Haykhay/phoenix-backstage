@@ -12,14 +12,14 @@ export interface DispatchResult {
   runUrl?: string;
 }
 
-interface WorkflowRun {
+export interface WorkflowRun {
   id: number;
   status: string;
   conclusion?: string;
   url: string;
 }
 
-interface GitHubWorkflowClient {
+export interface GitHubWorkflowClient {
   dispatch(input: {
     workflow: string;
     ref: string;

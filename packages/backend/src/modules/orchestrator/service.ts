@@ -44,23 +44,55 @@ export class OrchestrationService {
     this.#deps = dependencies;
   }
 
+  #authorizationPayload(request: Pick<StoredRequest,
+    'source' | 'requester' | 'action' | 'tier' | 'units' | 'gates' | 'reason' | 'retentionExpiresAt'
+  >): unknown {
+    return {
+      source: request.source,
+      requester: request.requester,
+      action: request.action,
+      tier: request.tier,
+      units: request.units.map(unit => ({
+        path: unit.path,
+        component: unit.component,
+        protected: unit.protected,
+      })),
+      gates: request.gates,
+      reason: request.reason,
+      retentionExpiresAt: request.retentionExpiresAt,
+    };
+  }
+
+  #validateTier(input: OrchestrationRequestInput): void {
+    const tiers = new Set(input.units.flatMap(unit => {
+      const parts = unit.path.split('/');
+      return ['infrastructure', 'k8s-installs'].includes(parts[0]) && parts[1] === 'environments'
+        ? [parts[2]]
+        : [];
+    }));
+    if (tiers.size > 1 || (tiers.size === 1 && !tiers.has(input.tier))) {
+      throw new Error(`request tier ${input.tier} does not match unit paths: ${[...tiers].join(', ')}`);
+    }
+  }
+
   async create(input: OrchestrationRequestInput): Promise<StoredRequest> {
+    this.#validateTier(input);
     if (input.action === 'retain') {
       if (!input.reason?.trim()) throw new Error('retention reason is required');
       if (!input.retentionExpiresAt || new Date(input.retentionExpiresAt).getTime() <= (this.#deps.now?.() ?? new Date()).getTime()) {
         throw new Error('retention expiry must be in the future');
       }
     }
-    const ordered = resolveInstallOrder(input.units, this.#deps.componentDependencies);
+    const installOrder = resolveInstallOrder(input.units, this.#deps.componentDependencies);
+    const ordered = input.action === 'destroy' ? [...installOrder].reverse() : installOrder;
     const enriched = {
       ...input,
       units: ordered.map(unit => ({ path: unit.path, component: unit.component })),
     };
     const gates = requiredApprovalGates(enriched, this.#deps.policy);
     const timestamp = (this.#deps.now?.() ?? new Date()).toISOString();
-    const request: StoredRequest = {
+    const requestWithoutDigest: Omit<StoredRequest, 'digest'> = {
       id: this.#deps.id?.() ?? randomUUID(),
-      digest: requestDigest(enriched),
       status: gates.length ? 'pending_approval' : 'ready',
       requester: input.requester,
       tier: input.tier,
@@ -73,6 +105,10 @@ export class OrchestrationService {
       updatedAt: timestamp,
       reason: input.reason,
       retentionExpiresAt: input.retentionExpiresAt,
+    };
+    const request: StoredRequest = {
+      ...requestWithoutDigest,
+      digest: requestDigest(this.#authorizationPayload(requestWithoutDigest as StoredRequest)),
     };
     await this.#deps.store.insert(request);
     await Promise.all(gates.map(gate => this.#deps.notify({
@@ -107,26 +143,25 @@ export class OrchestrationService {
       ...input,
       digest: request.digest,
     };
-    const proposedApprovals = [
-      ...request.approvals.filter(item => item.group !== input.group),
-      decision,
-    ];
     const allMembers = await this.#approvalMembers(request);
-    const approved = approvalsSatisfyGates(
-      request.gates,
-      proposedApprovals,
-      request.digest,
-      allMembers,
-    );
     const timestamp = (this.#deps.now?.() ?? new Date()).toISOString();
     return this.#deps.store.update(id, current => {
-      const approvals = proposedApprovals;
+      const approvals = [
+        ...current.approvals.filter(item => item.group !== input.group),
+        { ...decision, digest: current.digest },
+      ];
+      const approved = approvalsSatisfyGates(
+        current.gates,
+        approvals,
+        current.digest,
+        allMembers,
+      );
       return {
         ...current,
         approvals,
         status: input.decision === 'rejected'
           ? 'rejected'
-          : approved && current.action === 'retain' ? 'retained' : current.status,
+          : approved ? (current.action === 'retain' ? 'retained' : 'ready') : current.status,
         updatedAt: timestamp,
       };
     });
@@ -141,15 +176,21 @@ export class OrchestrationService {
 
   async claimNextUnit(id: string, worker: string): Promise<StoredUnit | undefined> {
     const request = await this.get(id);
-    if (request.status === 'rejected') throw new Error('request was rejected');
-    if (request.gates.length) {
-      const members = await this.#approvalMembers(request);
-      if (!approvalsSatisfyGates(request.gates, request.approvals, request.digest, members)) {
-        throw new Error('approval requirements are not satisfied');
-      }
-    }
+    const members = await this.#approvalMembers(request);
     let claimed: StoredUnit | undefined;
     await this.#deps.store.update(id, current => {
+      if (current.status !== 'ready') {
+        if (current.status === 'running' && current.units.some(unit => unit.status === 'running')) return current;
+        throw new Error(`request is not executable: ${current.status}`);
+      }
+      const currentDigest = requestDigest(this.#authorizationPayload(current));
+      if (currentDigest !== current.digest) throw new Error('request digest changed');
+      if (current.gates.length && !approvalsSatisfyGates(
+        current.gates,
+        current.approvals,
+        current.digest,
+        members,
+      )) throw new Error('approval requirements are not satisfied');
       if (current.units.some(unit => unit.status === 'running')) return current;
       const index = current.units.findIndex(unit => unit.status === 'pending');
       if (index < 0) return current;

@@ -8,6 +8,9 @@ import { Router, json } from 'express';
 
 import { routeOrchestratorRequest } from './router';
 import { OrchestrationService } from './service';
+import { GitHubWorkflowDispatcher } from './dispatch';
+import { GitHubActionsClient } from './github';
+import { executeRequest } from './worker';
 import {
   DatabaseOrchestrationStore,
   type MinimalKnex,
@@ -35,6 +38,7 @@ export const orchestratorPlugin = createBackendPlugin({
         httpRouter: coreServices.httpRouter,
         logger: coreServices.logger,
         notifications: notificationService,
+        scheduler: coreServices.scheduler,
         userInfo: coreServices.userInfo,
       },
       async init({
@@ -46,6 +50,7 @@ export const orchestratorPlugin = createBackendPlugin({
         httpRouter,
         logger,
         notifications,
+        scheduler,
         userInfo,
       }) {
         const client = await database.getClient();
@@ -111,6 +116,34 @@ export const orchestratorPlugin = createBackendPlugin({
             });
           },
         });
+
+        const mode = config.getOptionalString('phoenix.orchestrator.mode') ?? 'github';
+        if (mode === 'github') {
+          const token = config.getString('phoenix.orchestrator.github.token');
+          const dispatcher = new GitHubWorkflowDispatcher({
+            client: new GitHubActionsClient({
+              owner: config.getString('phoenix.orchestrator.github.owner'),
+              repo: config.getString('phoenix.orchestrator.github.repo'),
+              token,
+            }),
+          });
+          await scheduler.scheduleTask({
+            id: 'phoenix-orchestrator-executor',
+            frequency: { seconds: 10 },
+            timeout: { minutes: 55 },
+            fn: async () => {
+              const ready = (await service.list()).filter(request => request.status === 'ready');
+              for (const request of ready) {
+                await executeRequest({
+                  service, dispatcher, requestId: request.id,
+                  workerId: `backstage-${process.pid}`,
+                });
+              }
+            },
+          });
+        } else {
+          logger.warn('Phoenix orchestrator is in floci mode; use the local Floci worker adapter');
+        }
 
         const router = Router();
         router.use(json({ limit: '256kb' }));

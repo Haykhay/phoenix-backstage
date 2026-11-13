@@ -60,12 +60,42 @@ describe('OrchestrationService', () => {
       decision: 'approved',
     });
     await store.update(created.id, request => ({ ...request, digest: 'changed' }));
-    await assert.rejects(service.claimNextUnit(created.id, 'worker-1'), /approval requirements/);
+    await assert.rejects(service.claimNextUnit(created.id, 'worker-1'), /digest changed/);
+  });
+
+  it('moves a fully approved deployment to ready', async () => {
+    const { service } = fixture();
+    const created = await service.create(input);
+    const approved = await service.decide(created.id, {
+      group: 'group:default/prod-approvers', actor: 'user:default/alice', decision: 'approved',
+    });
+    assert.equal(approved.status, 'ready');
+  });
+
+  it('recomputes the digest and rejects a changed commit at claim time', async () => {
+    const { service, store } = fixture();
+    const created = await service.create(input);
+    await service.decide(created.id, {
+      group: 'group:default/prod-approvers', actor: 'user:default/alice', decision: 'approved',
+    });
+    await store.update(created.id, request => ({ ...request, source: { ...request.source, commit: 'changed' } }));
+    await assert.rejects(service.claimNextUnit(created.id, 'worker'), /digest changed/);
+  });
+
+  it('rejects a caller tier that disagrees with committed unit paths', async () => {
+    const { service } = fixture();
+    await assert.rejects(
+      service.create({ ...input, tier: 'sandbox' }),
+      /tier.*does not match/,
+    );
   });
 
   it('leases a unit once and resumes at a failed unit on retry', async () => {
     const { service } = fixture();
-    const created = await service.create({ ...input, tier: 'sandbox' });
+    const created = await service.create(input);
+    await service.decide(created.id, {
+      group: 'group:default/prod-approvers', actor: 'user:default/alice', decision: 'approved',
+    });
     const first = await service.claimNextUnit(created.id, 'worker-1');
     assert.equal(first.path, input.units[0].path);
     assert.equal(await service.claimNextUnit(created.id, 'worker-2'), undefined);
@@ -74,6 +104,67 @@ describe('OrchestrationService', () => {
     const retried = await service.claimNextUnit(created.id, 'worker-2');
     assert.equal(retried.path, first.path);
     assert.equal(retried.attempt, 2);
+  });
+
+  it('stops the chain after a failed unit', async () => {
+    const { service } = fixture();
+    const created = await service.create({
+      ...input,
+      tier: 'sandbox',
+      units: [
+        { path: 'infrastructure/environments/sandbox/a/eu-west-1/core-network.yaml' },
+        { path: 'infrastructure/environments/sandbox/a/eu-west-1/core-platform.yaml' },
+      ],
+    });
+    const first = await service.claimNextUnit(created.id, 'worker');
+    await service.recordUnitResult(created.id, first.path, { status: 'failed' });
+    await assert.rejects(service.claimNextUnit(created.id, 'worker'), /not executable/);
+  });
+
+  it('persists destroy units in reverse dependency order', async () => {
+    const { service } = fixture();
+    const created = await service.create({
+      ...input,
+      action: 'destroy',
+      tier: 'sandbox',
+      units: [
+        { path: 'infrastructure/environments/sandbox/a/eu-west-1/core-platform.yaml' },
+        { path: 'k8s-installs/environments/sandbox/a/eu-west-1/1/reloader.yaml' },
+      ],
+    });
+    assert.deepEqual(created.units.map(unit => unit.path), [
+      'k8s-installs/environments/sandbox/a/eu-west-1/1/reloader.yaml',
+      'infrastructure/environments/sandbox/a/eu-west-1/core-platform.yaml',
+    ]);
+  });
+
+  it('merges independent approval decisions against current stored state', async () => {
+    const store = new MemoryOrchestrationStore();
+    const groups = new Map([
+      ['group:default/prod', new Set(['user:default/alice'])],
+      ['group:default/cost', new Set(['user:default/bob'])],
+    ]);
+    const service = new OrchestrationService({
+      store,
+      policy: {
+        tierApprovalGroups: { prod: 'group:default/prod' },
+        componentApprovalGroups: { vllm: 'group:default/cost' },
+      },
+      componentDependencies: {},
+      getGroupMembers: async group => groups.get(group) ?? new Set(),
+      notify: async () => {},
+    });
+    const created = await service.create({
+      ...input,
+      units: [{
+        path: 'k8s-installs/environments/prod/team-prod/eu-west-1/1/vllm.model.yaml',
+        component: 'vllm',
+      }],
+    });
+    await service.decide(created.id, { group: 'group:default/prod', actor: 'user:default/alice', decision: 'approved' });
+    const result = await service.decide(created.id, { group: 'group:default/cost', actor: 'user:default/bob', decision: 'approved' });
+    assert.equal(result.approvals.length, 2);
+    assert.equal(result.status, 'ready');
   });
 
   it('activates a time-bounded retention only after group approval', async () => {
@@ -90,6 +181,7 @@ describe('OrchestrationService', () => {
       ...input,
       action: 'retain',
       tier: 'sandbox',
+      units: [{ path: 'infrastructure/environments/sandbox/a/eu-west-1/core-platform.yaml' }],
       retentionExpiresAt: '2026-11-16T09:00:00Z',
       reason: 'Monday customer demonstration',
     });

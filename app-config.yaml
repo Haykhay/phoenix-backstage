@@ -183,6 +183,15 @@ auth:
 scaffolder:
   # see https://backstage.io/docs/features/software-templates/configuration for software template options
 
+# Phoenix account registry (read by the aws-accounts entity provider).
+# Point `endpoint` at a local Floci (http://localhost:4566) for local dev;
+# omit it for real AWS.
+phoenix:
+  registry:
+    tableName: phoenix-account-registry
+    region: eu-west-1
+    # endpoint: http://localhost:4566
+
 catalog:
   import:
     entityFilename: catalog-info.yaml

@@ -1,9 +1,9 @@
-# Stand-in for the account registry (DynamoDB, filled by account vending).
-# One Resource per group account, named <group>-aws-account; the template
-# reads these annotations. Two roles, set per account when they exist:
-# phoenix/oidc-role-arn (the role the pipeline signs in as) and
-# phoenix/deploy-role-name (the role it assumes in each account, one name in
-# every workload account). Until they are set, plans fail clearly.
+# OFFLINE / LOCAL-DEV FIXTURE ONLY.
+# The live catalog is served by the aws-accounts entity provider
+# (plugins/catalog-backend-module-aws-accounts), which reads the DynamoDB
+# account registry and projects the SAME aws-account Resource shape. Keep this
+# file so Backstage still runs with no AWS (Docker/local); it is not the source
+# of truth. One Resource per group account, named <group>-aws-account.
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:

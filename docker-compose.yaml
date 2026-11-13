@@ -25,6 +25,10 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_USER: backstage
       POSTGRES_PASSWORD: backstage
+      # Local-only credentials for the account registry client talking to Floci.
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: eu-west-1
     volumes:
       - ./phoenix:/app/phoenix:ro
       - ./app-config.docker.yaml:/app/app-config.docker.yaml:ro

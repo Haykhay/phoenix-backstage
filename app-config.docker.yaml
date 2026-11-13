@@ -8,6 +8,8 @@ auth:
       userEntityRef: user:default/guest
 
 phoenix:
+  registry:
+    endpoint: http://host.docker.internal:4566
   orchestrator:
     mode: floci
 

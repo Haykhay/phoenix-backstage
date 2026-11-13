@@ -28,7 +28,7 @@ export function planIdleReclamation(
   const graceMilliseconds = options.graceHours * 60 * 60 * 1_000;
   return selectTeardownCandidates(environments, now)
     .filter(environment => environment.reclaimReason === 'idle')
-    .flatMap(environment => {
+    .flatMap<ReclamationAction>(environment => {
       if (!environment.notifiedAt) {
         return [{ type: 'notify' as const, environmentId: environment.id, reason: 'idle' as const }];
       }

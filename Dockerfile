@@ -7,7 +7,8 @@ WORKDIR /app
 COPY backstage.json package.json yarn.lock .yarnrc.yml ./
 COPY .yarn ./.yarn
 COPY packages packages
-RUN find packages \! -name "package.json" -mindepth 2 -maxdepth 2 -exec rm -rf {} \+
+COPY plugins plugins
+RUN find packages plugins \! -name "package.json" -mindepth 2 -maxdepth 2 -exec rm -rf {} \+
 
 # Stage 2: install, type-check, build the backend bundle (serves the app too).
 FROM node:24-trixie-slim AS build

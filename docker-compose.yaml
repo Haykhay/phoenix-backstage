@@ -15,7 +15,9 @@ services:
   backstage:
     build: .
     ports:
-      - "7007:7007"
+      - "${BACKSTAGE_PORT:-7007}:7007"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Entra settings (see .env.example); optional until Entra is enabled.
     env_file:
       - path: .env
@@ -29,6 +31,7 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       AWS_DEFAULT_REGION: eu-west-1
+      FLOCI_ENDPOINT: ${FLOCI_ENDPOINT:-http://host.docker.internal:4566}
     volumes:
       - ./phoenix:/app/phoenix:ro
       - ./app-config.docker.yaml:/app/app-config.docker.yaml:ro

@@ -9,7 +9,7 @@ auth:
 
 phoenix:
   registry:
-    endpoint: http://host.docker.internal:4566
+    endpoint: ${FLOCI_ENDPOINT:-http://host.docker.internal:4566}
   orchestrator:
     mode: floci
 

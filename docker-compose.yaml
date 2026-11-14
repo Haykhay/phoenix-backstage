@@ -32,6 +32,7 @@ services:
       AWS_SECRET_ACCESS_KEY: test
       AWS_DEFAULT_REGION: eu-west-1
       FLOCI_ENDPOINT: ${FLOCI_ENDPOINT:-http://host.docker.internal:4566}
+      BACKSTAGE_BASE_URL: ${BACKSTAGE_BASE_URL:-http://localhost:7007}
     volumes:
       - ./phoenix:/app/phoenix:ro
       - ./app-config.docker.yaml:/app/app-config.docker.yaml:ro

@@ -36,9 +36,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 USER node
 WORKDIR /app
 ENV NODE_ENV=production
-# Only the Yarn binary: the build stage's .yarn/install-state.gz would make
-# `focus` believe it has already installed and leave node_modules empty.
+# Yarn itself and the Backstage protocol plugin. Do not copy install-state.gz;
+# that would make `focus` believe runtime dependencies were already installed.
 COPY --from=build --chown=node:node /app/.yarn/releases ./.yarn/releases
+COPY --from=build --chown=node:node /app/.yarn/plugins ./.yarn/plugins
 COPY --from=build --chown=node:node /app/.yarnrc.yml /app/backstage.json /app/yarn.lock /app/package.json ./
 COPY --from=build --chown=node:node /app/packages/backend/dist/skeleton/ ./
 RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid=1000 \

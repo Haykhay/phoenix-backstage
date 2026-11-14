@@ -7,7 +7,15 @@ auth:
       # Sign in as the catalog's guest (a research member), so the template sees a user.
       userEntityRef: user:default/guest
 
+app:
+  baseUrl: ${BACKSTAGE_BASE_URL:-http://localhost:7007}
+
+backend:
+  baseUrl: ${BACKSTAGE_BASE_URL:-http://localhost:7007}
+
 phoenix:
+  registry:
+    endpoint: ${FLOCI_ENDPOINT:-http://host.docker.internal:4566}
   orchestrator:
     mode: floci
 
@@ -19,10 +27,6 @@ catalog:
       target: ./phoenix/org.yaml
       rules:
         - allow: [User, Group]
-    - type: file
-      target: ./phoenix/accounts.yaml
-      rules:
-        - allow: [Resource]
     - type: file
       target: ./phoenix/templates/environment/template.yaml
       rules:

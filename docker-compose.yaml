@@ -15,7 +15,9 @@ services:
   backstage:
     build: .
     ports:
-      - "7007:7007"
+      - "${BACKSTAGE_PORT:-7007}:7007"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Entra settings (see .env.example); optional until Entra is enabled.
     env_file:
       - path: .env
@@ -25,6 +27,12 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_USER: backstage
       POSTGRES_PASSWORD: backstage
+      # Local-only credentials for the account registry client talking to Floci.
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: eu-west-1
+      FLOCI_ENDPOINT: ${FLOCI_ENDPOINT:-http://host.docker.internal:4566}
+      BACKSTAGE_BASE_URL: ${BACKSTAGE_BASE_URL:-http://localhost:7007}
     volumes:
       - ./phoenix:/app/phoenix:ro
       - ./app-config.docker.yaml:/app/app-config.docker.yaml:ro

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$repo_root"
+
+node .yarn/releases/yarn-4.13.0.cjs install --immutable >/dev/null
+
+ruby -ryaml -e '
+  config = YAML.load_file("app-config.docker.yaml")
+  abort "registry endpoint must be configurable for host Floci" unless config.dig("phoenix", "registry", "endpoint") == "${FLOCI_ENDPOINT:-http://host.docker.internal:4566}"
+  abort "orchestrator must use explicit floci mode" unless config.dig("phoenix", "orchestrator", "mode") == "floci"
+  expected_url = "${BACKSTAGE_BASE_URL:-http://localhost:7007}"
+  abort "app base URL is not configurable" unless config.dig("app", "baseUrl") == expected_url
+  abort "backend base URL is not configurable" unless config.dig("backend", "baseUrl") == expected_url
+  locations = config.dig("catalog", "locations")
+  abort "static account fixture conflicts with the Floci registry provider" if locations.any? { |location| location["target"] == "./phoenix/accounts.yaml" }
+  compose = YAML.load_file("docker-compose.yaml")
+  env = compose.dig("services", "backstage", "environment")
+  abort "local AWS access key missing" unless env["AWS_ACCESS_KEY_ID"] == "test"
+  abort "local AWS secret key missing" unless env["AWS_SECRET_ACCESS_KEY"] == "test"
+  abort "local AWS region missing" unless env["AWS_DEFAULT_REGION"] == "eu-west-1"
+  abort "Floci endpoint is not passed into Backstage" unless env["FLOCI_ENDPOINT"] == "${FLOCI_ENDPOINT:-http://host.docker.internal:4566}"
+  abort "Backstage port is not configurable" unless compose.dig("services", "backstage", "ports") == ["${BACKSTAGE_PORT:-7007}:7007"]
+  abort "Backstage base URL is not passed into the container" unless env["BACKSTAGE_BASE_URL"] == "${BACKSTAGE_BASE_URL:-http://localhost:7007}"
+'
+
+echo "Backstage local package and Floci configuration verified"

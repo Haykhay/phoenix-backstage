@@ -65,10 +65,10 @@ export class OrchestrationService {
 
   #validateTier(input: OrchestrationRequestInput): void {
     const tiers = new Set(input.units.flatMap(unit => {
+      // infrastructure/environments/<tier>/... (phoenix-aws) or environments/<tier>/... (phoenix-k8s)
       const parts = unit.path.split('/');
-      return ['infrastructure', 'k8s-installs'].includes(parts[0]) && parts[1] === 'environments'
-        ? [parts[2]]
-        : [];
+      if (parts[0] === 'environments') return [parts[1]];
+      return parts[0] === 'infrastructure' && parts[1] === 'environments' ? [parts[2]] : [];
     }));
     if (tiers.size > 1 || (tiers.size === 1 && !tiers.has(input.tier))) {
       throw new Error(`request tier ${input.tier} does not match unit paths: ${[...tiers].join(', ')}`);

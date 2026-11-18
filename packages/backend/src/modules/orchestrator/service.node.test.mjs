@@ -90,6 +90,14 @@ describe('OrchestrationService', () => {
     );
   });
 
+  it('checks the tier of phoenix-k8s units too', async () => {
+    const { service } = fixture();
+    await assert.rejects(
+      service.create({ ...input, units: [{ path: 'environments/sandbox/a/eu-west-1/1/reloader.yaml' }] }),
+      /tier prod does not match unit paths: sandbox/,
+    );
+  });
+
   it('leases a unit once and resumes at a failed unit on retry', async () => {
     const { service } = fixture();
     const created = await service.create(input);
@@ -129,11 +137,11 @@ describe('OrchestrationService', () => {
       tier: 'sandbox',
       units: [
         { path: 'infrastructure/environments/sandbox/a/eu-west-1/core-platform.yaml' },
-        { path: 'k8s-installs/environments/sandbox/a/eu-west-1/1/reloader.yaml' },
+        { path: 'environments/sandbox/a/eu-west-1/1/reloader.yaml' },
       ],
     });
     assert.deepEqual(created.units.map(unit => unit.path), [
-      'k8s-installs/environments/sandbox/a/eu-west-1/1/reloader.yaml',
+      'environments/sandbox/a/eu-west-1/1/reloader.yaml',
       'infrastructure/environments/sandbox/a/eu-west-1/core-platform.yaml',
     ]);
   });
@@ -157,7 +165,7 @@ describe('OrchestrationService', () => {
     const created = await service.create({
       ...input,
       units: [{
-        path: 'k8s-installs/environments/prod/team-prod/eu-west-1/1/vllm.model.yaml',
+        path: 'environments/prod/team-prod/eu-west-1/1/vllm.model.yaml',
         component: 'vllm',
       }],
     });
@@ -176,6 +184,7 @@ describe('OrchestrationService', () => {
       componentDependencies: {},
       getGroupMembers: async group => members.get(group) ?? new Set(),
       notify: async () => {},
+      now: () => new Date('2026-11-14T12:00:00Z'),
     });
     const created = await service.create({
       ...input,

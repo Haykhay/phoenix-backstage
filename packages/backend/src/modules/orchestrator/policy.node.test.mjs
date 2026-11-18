@@ -17,7 +17,7 @@ const request = {
   units: [
     { path: 'infrastructure/environments/prod/team-prod/eu-west-1/core-platform.yaml' },
     {
-      path: 'k8s-installs/environments/prod/team-prod/eu-west-1/1/vllm.model.yaml',
+      path: 'environments/prod/team-prod/eu-west-1/1/vllm.model.yaml',
       component: 'vllm',
     },
   ],

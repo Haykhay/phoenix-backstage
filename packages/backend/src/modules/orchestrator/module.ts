@@ -120,10 +120,16 @@ export const orchestratorPlugin = createBackendPlugin({
         const mode = config.getOptionalString('phoenix.orchestrator.mode') ?? 'github';
         if (mode === 'github') {
           const token = config.getString('phoenix.orchestrator.github.token');
+          const owner = config.getString('phoenix.orchestrator.github.owner');
           const dispatcher = new GitHubWorkflowDispatcher({
             client: new GitHubActionsClient({
-              owner: config.getString('phoenix.orchestrator.github.owner'),
+              owner,
               repo: config.getString('phoenix.orchestrator.github.repo'),
+              token,
+            }),
+            k8sClient: new GitHubActionsClient({
+              owner,
+              repo: config.getOptionalString('phoenix.orchestrator.github.k8sRepo') ?? 'phoenix-k8s',
               token,
             }),
           });

@@ -1,10 +1,10 @@
-# Every k8s-installs component. dependsOn = direct prerequisites: the
+# Every phoenix-k8s component. dependsOn = direct prerequisites: the
 # orchestrator installs in that order and tears down in reverse.
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-cluster-config
-  description: "k8s-installs module cluster-config."
+  description: "phoenix-k8s module cluster-config."
   annotations:
     phoenix/module: "cluster-config"
 spec:
@@ -15,7 +15,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-karpenter
-  description: "k8s-installs module karpenter."
+  description: "phoenix-k8s module karpenter."
   annotations:
     phoenix/module: "karpenter"
 spec:
@@ -26,7 +26,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-kyverno
-  description: "k8s-installs module kyverno."
+  description: "phoenix-k8s module kyverno."
   annotations:
     phoenix/module: "kyverno"
 spec:
@@ -37,7 +37,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-falco
-  description: "k8s-installs module falco."
+  description: "phoenix-k8s module falco."
   annotations:
     phoenix/module: "falco"
 spec:
@@ -48,7 +48,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-reloader
-  description: "k8s-installs module reloader."
+  description: "phoenix-k8s module reloader."
   annotations:
     phoenix/module: "reloader"
 spec:
@@ -59,7 +59,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-external-secrets
-  description: "k8s-installs module external-secrets."
+  description: "phoenix-k8s module external-secrets."
   annotations:
     phoenix/module: "external-secrets"
 spec:
@@ -70,7 +70,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-grafana-stack
-  description: "k8s-installs module grafana-stack."
+  description: "phoenix-k8s module grafana-stack."
   annotations:
     phoenix/module: "grafana-stack"
 spec:
@@ -81,7 +81,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-opencost
-  description: "k8s-installs module opencost."
+  description: "phoenix-k8s module opencost."
   annotations:
     phoenix/module: "opencost"
 spec:
@@ -94,7 +94,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-cert-manager
-  description: "k8s-installs module cert-manager."
+  description: "phoenix-k8s module cert-manager."
   annotations:
     phoenix/module: "cert-manager"
 spec:
@@ -105,7 +105,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-aws-load-balancer-controller
-  description: "k8s-installs module aws-load-balancer-controller."
+  description: "phoenix-k8s module aws-load-balancer-controller."
   annotations:
     phoenix/module: "aws-load-balancer-controller"
 spec:
@@ -116,7 +116,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-external-dns
-  description: "k8s-installs module external-dns."
+  description: "phoenix-k8s module external-dns."
   annotations:
     phoenix/module: "external-dns"
 spec:
@@ -127,7 +127,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-istio
-  description: "k8s-installs module istio."
+  description: "phoenix-k8s module istio."
   annotations:
     phoenix/module: "istio"
 spec:
@@ -141,7 +141,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-argo-cd
-  description: "k8s-installs module argo-cd."
+  description: "phoenix-k8s module argo-cd."
   annotations:
     phoenix/module: "argo-cd"
 spec:
@@ -155,7 +155,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-kargo
-  description: "k8s-installs module kargo."
+  description: "phoenix-k8s module kargo."
   annotations:
     phoenix/module: "kargo"
 spec:
@@ -169,7 +169,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-nvidia-gpu-operator
-  description: "k8s-installs module nvidia-gpu-operator."
+  description: "phoenix-k8s module nvidia-gpu-operator."
   annotations:
     phoenix/module: "nvidia-gpu-operator"
 spec:
@@ -180,7 +180,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-karpenter-nodepool
-  description: "k8s-installs module karpenter-nodepool."
+  description: "phoenix-k8s module karpenter-nodepool."
   annotations:
     phoenix/module: "karpenter-nodepool"
     phoenix/instanced: "true"
@@ -194,7 +194,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-vllm
-  description: "k8s-installs module vllm."
+  description: "phoenix-k8s module vllm."
   annotations:
     phoenix/module: "vllm"
     phoenix/instanced: "true"
@@ -212,7 +212,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-clickhouse-operator
-  description: "k8s-installs module clickhouse-operator."
+  description: "phoenix-k8s module clickhouse-operator."
   annotations:
     phoenix/module: "clickhouse-operator"
 spec:
@@ -225,7 +225,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-langfuse
-  description: "k8s-installs module langfuse."
+  description: "phoenix-k8s module langfuse."
   annotations:
     phoenix/module: "langfuse"
 spec:
@@ -240,7 +240,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-cloudnative-pg
-  description: "k8s-installs module cloudnative-pg."
+  description: "phoenix-k8s module cloudnative-pg."
   annotations:
     phoenix/module: "cloudnative-pg"
 spec:
@@ -251,7 +251,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-cloudnative-pg-cluster
-  description: "k8s-installs module cloudnative-pg-cluster."
+  description: "phoenix-k8s module cloudnative-pg-cluster."
   annotations:
     phoenix/module: "cloudnative-pg-cluster"
     phoenix/instanced: "true"
@@ -266,7 +266,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-valkey-redis
-  description: "k8s-installs module valkey-redis."
+  description: "phoenix-k8s module valkey-redis."
   annotations:
     phoenix/module: "valkey-redis"
 spec:
@@ -277,7 +277,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-valkey-redis-cluster
-  description: "k8s-installs module valkey-redis-cluster."
+  description: "phoenix-k8s module valkey-redis-cluster."
   annotations:
     phoenix/module: "valkey-redis-cluster"
     phoenix/instanced: "true"
@@ -292,7 +292,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-strimzi-kafka
-  description: "k8s-installs module strimzi-kafka."
+  description: "phoenix-k8s module strimzi-kafka."
   annotations:
     phoenix/module: "strimzi-kafka"
 spec:
@@ -303,7 +303,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-strimzi-kafka-cluster
-  description: "k8s-installs module strimzi-kafka-cluster."
+  description: "phoenix-k8s module strimzi-kafka-cluster."
   annotations:
     phoenix/module: "strimzi-kafka-cluster"
     phoenix/instanced: "true"
@@ -318,7 +318,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-neuron-device-plugin
-  description: "k8s-installs module neuron-device-plugin."
+  description: "phoenix-k8s module neuron-device-plugin."
   annotations:
     phoenix/module: "neuron-device-plugin"
 spec:
@@ -329,7 +329,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-aws-fsx-csi-driver
-  description: "k8s-installs module aws-fsx-csi-driver."
+  description: "phoenix-k8s module aws-fsx-csi-driver."
   annotations:
     phoenix/module: "aws-fsx-csi-driver"
 spec:
@@ -340,7 +340,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-volume
-  description: "k8s-installs module volume."
+  description: "phoenix-k8s module volume."
   annotations:
     phoenix/module: "volume"
 spec:
@@ -353,7 +353,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-model-weights
-  description: "k8s-installs module model-weights."
+  description: "phoenix-k8s module model-weights."
   annotations:
     phoenix/module: "model-weights"
     phoenix/instanced: "true"
@@ -367,7 +367,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: component-llm-d
-  description: "k8s-installs module llm-d."
+  description: "phoenix-k8s module llm-d."
   annotations:
     phoenix/module: "llm-d"
 spec:

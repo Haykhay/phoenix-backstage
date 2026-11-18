@@ -8,12 +8,12 @@ const unit = path => ({ path });
 describe('resolveInstallOrder', () => {
   it('orders fixed layers before stable layer-three dependencies', () => {
     const units = [
-      unit('k8s-installs/environments/sandbox/team-sandbox-jdoe/eu-west-1/1/vllm.model.yaml'),
+      unit('environments/sandbox/team-sandbox-jdoe/eu-west-1/1/vllm.model.yaml'),
       unit('infrastructure/environments/sandbox/team-sandbox-jdoe/eu-west-1/core-platform.yaml'),
       unit('networking/environments/eu-west-1/region.yaml'),
       unit('accounts/team-sandbox-jdoe.yaml'),
-      unit('k8s-installs/environments/sandbox/team-sandbox-jdoe/eu-west-1/1/model-weights.model.yaml'),
-      unit('k8s-installs/environments/sandbox/team-sandbox-jdoe/eu-west-1/1/opencost.yaml'),
+      unit('environments/sandbox/team-sandbox-jdoe/eu-west-1/1/model-weights.model.yaml'),
+      unit('environments/sandbox/team-sandbox-jdoe/eu-west-1/1/opencost.yaml'),
     ];
 
     const result = resolveInstallOrder(units, {
@@ -26,16 +26,16 @@ describe('resolveInstallOrder', () => {
       'accounts/team-sandbox-jdoe.yaml',
       'networking/environments/eu-west-1/region.yaml',
       'infrastructure/environments/sandbox/team-sandbox-jdoe/eu-west-1/core-platform.yaml',
-      'k8s-installs/environments/sandbox/team-sandbox-jdoe/eu-west-1/1/model-weights.model.yaml',
-      'k8s-installs/environments/sandbox/team-sandbox-jdoe/eu-west-1/1/vllm.model.yaml',
-      'k8s-installs/environments/sandbox/team-sandbox-jdoe/eu-west-1/1/opencost.yaml',
+      'environments/sandbox/team-sandbox-jdoe/eu-west-1/1/model-weights.model.yaml',
+      'environments/sandbox/team-sandbox-jdoe/eu-west-1/1/vllm.model.yaml',
+      'environments/sandbox/team-sandbox-jdoe/eu-west-1/1/opencost.yaml',
     ]);
   });
 
   it('rejects a dependency absent from the requested unit set', () => {
     assert.throws(
       () => resolveInstallOrder([
-        unit('k8s-installs/environments/sandbox/a/eu-west-1/1/vllm.model.yaml'),
+        unit('environments/sandbox/a/eu-west-1/1/vllm.model.yaml'),
       ], { vllm: ['model-weights'] }),
       /missing dependency model-weights/,
     );
@@ -49,8 +49,8 @@ describe('resolveInstallOrder', () => {
   it('reports a component dependency cycle', () => {
     assert.throws(
       () => resolveInstallOrder([
-        unit('k8s-installs/environments/sandbox/a/eu-west-1/1/istio.yaml'),
-        unit('k8s-installs/environments/sandbox/a/eu-west-1/1/cert-manager.yaml'),
+        unit('environments/sandbox/a/eu-west-1/1/istio.yaml'),
+        unit('environments/sandbox/a/eu-west-1/1/cert-manager.yaml'),
       ], { istio: ['cert-manager'], 'cert-manager': ['istio'] }),
       /dependency cycle.*cert-manager.*istio|dependency cycle.*istio.*cert-manager/,
     );

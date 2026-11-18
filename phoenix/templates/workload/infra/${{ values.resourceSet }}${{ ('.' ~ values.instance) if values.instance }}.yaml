@@ -14,10 +14,6 @@ requester: ${{ c['phoenix/requester'] }}
 tier: ${{ c['phoenix/tier'] }}
 region: ${{ c['phoenix/region'] }}
 account_id: "${{ a['phoenix/account-id'] }}"
-# The OIDC role the pipeline signs in as, and the deploy role it assumes in
-# each account (one name in every workload account): the account registry.
-oidc_role_arn: ${{ (a['phoenix/oidc-role-arn'] or '') | dump }}
-deploy_role_name: ${{ (a['phoenix/deploy-role-name'] or '') | dump }}
 module_ref: main
 state:
   bucket: ${{ a['phoenix/state-bucket'] }}

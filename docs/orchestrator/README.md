@@ -2,11 +2,14 @@
 
 Backstage is Phoenix's control plane. It receives exact unit paths from
 Scaffolder, resolves catalog dependencies, obtains Entra-backed approvals, and
-dispatches `phoenix-aws/.github/workflows/terraform.yml` one unit at a time.
+dispatches one unit at a time: `phoenix-aws/.github/workflows/terraform.yml`
+for `networking/` and `infrastructure/` units, `phoenix-k8s/.github/workflows/terraform.yml`
+for `environments/` (Layer 3) units (`phoenix.orchestrator.github.repo` and
+`k8sRepo`).
 
 ## Ordering
 
-The fixed order is account → networking → infrastructure → `k8s-installs`.
+The fixed order is account → networking → infrastructure → `phoenix-k8s`.
 Layer 3 uses each `phoenix-component` Resource's `spec.dependsOn`. Instances
 inherit their component dependencies. Missing prerequisites, duplicates,
 unknown paths, and cycles fail before dispatch. Destroy reverses the order.

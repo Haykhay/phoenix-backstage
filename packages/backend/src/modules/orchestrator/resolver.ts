@@ -12,7 +12,8 @@ function parseUnit(unit: OrchestrationUnit): ResolvedUnit {
   if (path.startsWith('accounts/')) layer = 0;
   else if (path.startsWith('networking/environments/')) layer = 1;
   else if (path.startsWith('infrastructure/environments/')) layer = 2;
-  else if (path.startsWith('k8s-installs/environments/')) layer = 3;
+  // Layer 3 units are phoenix-k8s paths; everything above is phoenix-aws.
+  else if (path.startsWith('environments/')) layer = 3;
   else throw new Error(`unknown unit path: ${path}`);
 
   if (!path.endsWith('.yaml')) throw new Error(`unit must be YAML: ${path}`);

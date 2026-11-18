@@ -6,7 +6,7 @@ metadata:
   description: >-
     Choose what you want to run on a cluster: a workload type, and optionally a
     database type, a GPU type and a model. The platform decides the components,
-    versions and sizes, and writes one k8s-installs unit per component.
+    versions and sizes, and writes one phoenix-k8s unit per component.
   tags: [phoenix, kubernetes, terraform]
 spec:
   owner: group:default/platform
@@ -346,7 +346,7 @@ spec:
         url: ./skeleton
         replace: true
         targetPath: >-
-          k8s-installs/environments/${{ steps.cluster.output.entity.metadata.annotations['phoenix/tier'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/env-id'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/region'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/cluster'] }}
+          environments/${{ steps.cluster.output.entity.metadata.annotations['phoenix/tier'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/env-id'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/region'] }}/${{ steps.cluster.output.entity.metadata.annotations['phoenix/cluster'] }}
         values:
           component: ${{ each.value | replace('resource:default/component-', '') }}
           instance: >-
@@ -461,7 +461,7 @@ spec:
     text:
       - title: Next
         content: >-
-          Units written under k8s-installs/environments/ (and, for a model,
-          model-store and model-cache under infrastructure/environments/). The orchestrator
+          Units written under environments/ for phoenix-k8s (and, for a model,
+          model-store and model-cache under infrastructure/environments/ for phoenix-aws). The orchestrator
           installs them in the order the components' dependsOn gives, and lets
           you know when the cluster is ready.

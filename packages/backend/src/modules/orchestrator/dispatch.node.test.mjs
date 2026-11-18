@@ -28,6 +28,32 @@ describe('GitHubWorkflowDispatcher', () => {
     assert.deepEqual(result, { status: 'succeeded', runUrl: 'https://github.test/runs/42' });
   });
 
+  it('dispatches Layer 3 units to phoenix-k8s and the rest to phoenix-aws', async () => {
+    const seen = [];
+    const fake = repo => ({
+      async dispatch(input) { seen.push([repo, input.inputs.config_file]); },
+      async findRunByOrchestrationId() { return { id: 1, status: 'completed', conclusion: 'success', url: repo }; },
+      async getRun() { throw new Error('must not poll completed run'); },
+    });
+    const dispatcher = new GitHubWorkflowDispatcher({ client: fake('phoenix-aws'), k8sClient: fake('phoenix-k8s'), sleep: async () => {} });
+    const k8s = await dispatcher.dispatch({ orchestrationId: 'a', configFile: 'environments/sandbox/a/eu-west-1/1/vllm.m.yaml', action: 'apply' });
+    await dispatcher.dispatch({ orchestrationId: 'b', configFile: 'infrastructure/environments/sandbox/a/eu-west-1/core-platform.yaml', action: 'apply' });
+    assert.deepEqual(seen, [
+      ['phoenix-k8s', 'environments/sandbox/a/eu-west-1/1/vllm.m.yaml'],
+      ['phoenix-aws', 'infrastructure/environments/sandbox/a/eu-west-1/core-platform.yaml'],
+    ]);
+    assert.equal(k8s.runUrl, 'phoenix-k8s', 'the run is looked up in the repo it was dispatched to');
+  });
+
+  it('refuses a Layer 3 unit when no phoenix-k8s client is configured', async () => {
+    const client = { async dispatch() { throw new Error('must not dispatch to phoenix-aws'); } };
+    const dispatcher = new GitHubWorkflowDispatcher({ client, sleep: async () => {} });
+    await assert.rejects(
+      dispatcher.dispatch({ orchestrationId: 'a', configFile: 'environments/sandbox/a/eu-west-1/1/reloader.yaml', action: 'apply' }),
+      /phoenix-k8s/,
+    );
+  });
+
   it('reports a failed run without dispatching another unit', async () => {
     const client = {
       async dispatch() {},

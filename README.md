@@ -17,7 +17,7 @@ see the files; opening the PR comes in the next iteration.
 | Path | What |
 |---|---|
 | `phoenix/templates/environment/` | environment form: infrastructure units + the cluster entity |
-| `phoenix/templates/workload/` | workload form: k8s-installs units |
+| `phoenix/templates/workload/` | workload form: phoenix-k8s units |
 | `phoenix/catalog/` | components and the options the workload form offers |
 | `phoenix/accounts.yaml` | stand-in for the account registry (DynamoDB): one `<group>-aws-account` Resource (incl. the group's apps repo for Argo CD) |
 | `phoenix/org.yaml` | local groups and users |
@@ -27,19 +27,19 @@ see the files; opening the PR comes in the next iteration.
 config needs `docker compose restart backstage`; catalog files refresh on
 their own within a few minutes.
 
-## Phoenix workload (k8s-installs)
+## Phoenix workload (phoenix-k8s)
 
 Create → **Phoenix workload**: pick a cluster, a workload type (service, model
 serving), and optionally a database type (+ name), a GPU type and a model. The
-form writes one `k8s-installs` unit per component under
-`k8s-installs/environments/<tier>/<env_id>/<region>/<cluster>/`.
+form writes one `phoenix-k8s` unit per component under
+`environments/<tier>/<env_id>/<region>/<cluster>/`.
 
 Everything it offers is catalog data in `phoenix/catalog/` (all `Resource`s,
 owned by `group:default/platform`):
 
 | File | `spec.type` | What |
 |---|---|---|
-| `components.yaml` | `phoenix-component` | one per k8s-installs module; `dependsOn` = direct prerequisites (install order, reverse for teardown) |
+| `components.yaml` | `phoenix-component` | one per phoenix-k8s module; `dependsOn` = direct prerequisites (install order, reverse for teardown) |
 | `workloads.yaml` | `phoenix-workload`, `phoenix-baseline` | workload types, and the baseline every cluster gets |
 | `databases.yaml` | `phoenix-database` | postgres, redis, kafka |
 | `gpus.yaml` | `phoenix-gpu` | GPU types; annotations become the Karpenter pool's `instance_families` / `gpu_count_max` |

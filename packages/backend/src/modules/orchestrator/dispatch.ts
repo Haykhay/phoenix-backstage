@@ -29,20 +29,30 @@ export interface GitHubWorkflowClient {
   getRun(id: number): Promise<WorkflowRun>;
 }
 
+// client: phoenix-aws (networking/, infrastructure/); k8sClient: phoenix-k8s
+// (environments/, Layer 3). Each runs its own terraform.yml.
 export class GitHubWorkflowDispatcher {
   readonly #client: GitHubWorkflowClient;
+  readonly #k8sClient?: GitHubWorkflowClient;
   readonly #sleep: (milliseconds: number) => Promise<void>;
 
   constructor(options: {
     client: GitHubWorkflowClient;
+    k8sClient?: GitHubWorkflowClient;
     sleep?: (milliseconds: number) => Promise<void>;
   }) {
     this.#client = options.client;
+    this.#k8sClient = options.k8sClient;
     this.#sleep = options.sleep ?? (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
   }
 
   async dispatch(input: DispatchInput): Promise<DispatchResult> {
-    await this.#client.dispatch({
+    let client = this.#client;
+    if (input.configFile.startsWith('environments/')) {
+      if (!this.#k8sClient) throw new Error(`no phoenix-k8s client configured for ${input.configFile}`);
+      client = this.#k8sClient;
+    }
+    await client.dispatch({
       workflow: 'terraform.yml',
       ref: 'main',
       inputs: {
@@ -53,13 +63,13 @@ export class GitHubWorkflowDispatcher {
     });
     let run: WorkflowRun | undefined;
     for (let attempt = 0; attempt < 30 && !run; attempt += 1) {
-      run = await this.#client.findRunByOrchestrationId(input.orchestrationId);
+      run = await client.findRunByOrchestrationId(input.orchestrationId);
       if (!run) await this.#sleep(2_000);
     }
     if (!run) throw new Error(`workflow run not found for ${input.orchestrationId}`);
     while (run.status !== 'completed') {
       await this.#sleep(5_000);
-      run = await this.#client.getRun(run.id);
+      run = await client.getRun(run.id);
     }
     return {
       status: run.conclusion === 'success' ? 'succeeded' : 'failed',
